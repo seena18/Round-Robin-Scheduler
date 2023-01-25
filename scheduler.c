@@ -12,13 +12,15 @@
 #include <sys/sysmacros.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #define MAX_ARGUMENTS 10
 #define MAX_PROCESSES 101
-
+extern int errno ;
 int *childp;
 int *count;
 bool end = false;
+bool alarmB = false;
 pid_t chpid = 0;
 int isNumber(char s[])
 {
@@ -34,7 +36,7 @@ typedef struct process
 {
     char *name;
     int size;
-    char *arguments[MAX_ARGUMENTS + 1];
+    char *arguments[MAX_ARGUMENTS + 2];
 } process;
 void printprocesses(process *p, int numprocesses)
 {
@@ -52,16 +54,34 @@ void sigh()
 {
     pid_t pid;
     int status;
+    int index;
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
     {
-        chpid = pid;
+        fprintf(stderr, "terminated: %d ", pid);
+        for (int i =0; i<*count;i++){
+            if (childp[i] == pid){
+                index = i;
+            }
+        }
+        for (int j = index; j < *count; j++)
+                {
+                    childp[j] = childp[j + 1];
+                }
+                *count = *count - 1;
     }
+    end = true;
+}
+void siga(){
+    alarm(0);
+    end=true;
+    alarmB=true;
 }
 int main(int argc, char *argv[])
 {
 
     // array for keeping track of processes
     signal(SIGCHLD, sigh);
+    signal(SIGALRM, siga);
     childp = mmap(NULL, sizeof(int) * (MAX_PROCESSES + 1), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     count = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
 
@@ -71,11 +91,17 @@ int main(int argc, char *argv[])
     if (argc < 3)
     {
         fprintf(stderr, "Usage: schedule [milliseconds] [prog1 [prog1 args...]] [prog2 [prog2 args...]] ...\n");
+        free(processes);
+        munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
+        munmap(count, sizeof(int));
         return 0;
     }
     if (!isNumber(argv[1]))
     {
         fprintf(stderr, "Second argument should be a numerical value representing milliseconds\n");
+        free(processes);
+        munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
+        munmap(count, sizeof(int));
         return 0;
     }
     int quantum = atoi(argv[1]);
@@ -93,6 +119,9 @@ int main(int argc, char *argv[])
         numprocesses++;
         index++;
         // delimiter for separating each process and their arguments
+        p.arguments[size] = (char *)malloc(sizeof(char) * (strlen(p.name) + 1));
+        strcpy(p.arguments[size], p.name);
+        size++;
         while (index < argc && strcmp(argv[index], ":") != 0)
         {
             p.arguments[size] = (char *)malloc(sizeof(char) * (strlen(argv[index]) + 1));
@@ -115,6 +144,18 @@ int main(int argc, char *argv[])
         else
         {
             fprintf(stderr, "ERROR: allocating memory for process details");
+            munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
+            munmap(count, sizeof(int));
+            for (int i = 0; i < numprocesses; i++)
+            {
+                free(processes[i].name);
+                for (int j = 0; j < processes[i].size; j++)
+                {
+                    free(processes[i].arguments[j]);
+                }
+            }
+            free(processes);
+            return 0;
         }
         if (index < argc && strcmp(argv[index], ":") == 0)
         {
@@ -129,91 +170,89 @@ int main(int argc, char *argv[])
         if (pidC == -1)
         {
             fprintf(stderr, "ERROR: failed to schedule processes");
+            munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
+            munmap(count, sizeof(int));
+            for (int i = 0; i < numprocesses; i++)
+            {
+                free(processes[i].name);
+                for (int j = 0; j < processes[i].size; j++)
+                {
+                    free(processes[i].arguments[j]);
+                }
+            }
+            free(processes);
             return 0;
             for (int i = 0; i < *count; i++)
             {
                 kill(childp[i], SIGKILL);
             }
         }
+        if(pidC!=0){
+            childp[i]=pidC;
+            *count = *count + 1;
+        }
         if (pidC == 0)
         {
-            *count = *count + 1;
-            int mypid = getpid();
-
-            int index = -1;
-            for (int j = 0; j < MAX_PROCESSES; j++)
-            {
-                if (childp[j] == 0)
-                {
-                    index = j;
-                    break;
-                }
-            }
-            if (index == -1)
-                return 0;
-
-            childp[index] = getpid();
+            int mypid =getpid();
             kill(mypid, SIGSTOP);
-            char *name = (char *)malloc(sizeof(char) * (strlen(processes[i].name) + 3));
-            name[0] = '.';
-            name[1] = '/';
-            strcat(name, processes[i].name);
-            execvp(name, processes[i].arguments);
-            exit(-1);
+            fprintf(stderr, "cont: %d\n", mypid);
+            execv(processes[i].name, processes[i].arguments);
         }
     }
-    while (*count == 0)
+    while (*count != numprocesses)
         ;
-    while (childp[0] == 0)
+    while (childp[numprocesses-1] == 0)
         ;
-
-    struct timeval stop, start;
+    
     for (int i = 0; i < *count; i++)
     {
         fprintf(stderr, "child %d: %d\n", i, childp[i]);
     }
+    fprintf(stderr, "count: %d\n",*count);
+    bool flag = false;
+    int errnum;
     while (*count)
     {
         for (int i = 0; i < *count; i++)
         {
-
-            gettimeofday(&start, NULL);
+            int cpid=childp[i];
+            fprintf(stderr, "child %d: %d\n", i, childp[i]);
             kill(childp[i], SIGCONT);
-            gettimeofday(&stop, NULL);
-            int time_spent = ((stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec) / 1000;
-
-            // timer for quantum
-
-            while (time_spent < quantum)
+            ualarm(quantum*1000,quantum*1000);
+            while(!end);
+            fprintf(stderr, "child %d: %d\n", i, childp[i]);
+            if (alarmB)
             {
-                // if end flag is activated by child, then we break the timer
-                // and move on to remove it from array of pending processes
-                if (chpid == childp[i])
-                {
-                    break;
-                }
-                gettimeofday(&stop, NULL);
-                time_spent = ((stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec) / 1000;
-            }
-            // if scheduled program has not completed then we pause it
-            if (chpid != childp[i])
-            {
+                alarmB=false;
                 kill(childp[i], SIGSTOP);
+                
             }
             else
             {
-                // if scheduled program completes, remove it from list of children
-                for (int j = i; j < *count - 1; j++)
-                {
-                    childp[j] = childp[j + 1]; // assign arr[i+1] to arr[i]
-                }
-                *count = *count - 1;
 
-                i--;
+                // int cpid=childp[i];
+                // waitpid(cpid,0,0);
+                // int cpid=childp[i];
+                // // if scheduled program completes, remove it from list of children
+                // waitpid(cpid,0,0);
+                // for (int j = i; j < *count - 1; j++)
+                // {
+                //     childp[j] = childp[j + 1]; // assign arr[i+1] to arr[i]
+                // }
+                // *count = *count - 1;
+                
+                // i--;
             }
+        flag=true;
+        break;
+
         }
+        if(flag){
+            break;
+        }
+
     }
-    wait(0);
+    wait(0); 
     munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
     munmap(count, sizeof(int));
 
