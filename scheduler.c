@@ -50,6 +50,14 @@ void printprocesses(process *p, int numprocesses)
         fprintf(stderr, "\n");
     }
 }
+bool checkChildArr(){
+    for (int i = 0; i < *count; i++)
+    {
+        if(childp[i]==0){
+            return false;
+        }
+    }
+}
 void sigh()
 {
     pid_t pid;
@@ -57,7 +65,7 @@ void sigh()
     int index;
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
     {
-        fprintf(stderr, "terminated: %d ", pid);
+        // fprintf(stderr, "terminated: %d ", pid);
         for (int i =0; i<*count;i++){
             if (childp[i] == pid){
                 index = i;
@@ -72,7 +80,7 @@ void sigh()
     end = true;
 }
 void siga(){
-    alarm(0);
+    fprintf(stderr, "alarm: %d\n",alarmB);
     end=true;
     alarmB=true;
 }
@@ -90,7 +98,7 @@ int main(int argc, char *argv[])
     // usage error checking
     if (argc < 3)
     {
-        fprintf(stderr, "Usage: schedule [milliseconds] [prog1 [prog1 args...]] [prog2 [prog2 args...]] ...\n");
+        fprintf(stderr, "Usage: schedule [milliseconds (positive integer)] [prog1 [prog1 args...]] [prog2 [prog2 args...]] ...\n");
         free(processes);
         munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
         munmap(count, sizeof(int));
@@ -98,7 +106,7 @@ int main(int argc, char *argv[])
     }
     if (!isNumber(argv[1]))
     {
-        fprintf(stderr, "Second argument should be a numerical value representing milliseconds\n");
+        fprintf(stderr, "Usage: schedule [milliseconds (positive integer)] [prog1 [prog1 args...]] [prog2 [prog2 args...]] ...\n");
         free(processes);
         munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
         munmap(count, sizeof(int));
@@ -187,72 +195,58 @@ int main(int argc, char *argv[])
                 kill(childp[i], SIGKILL);
             }
         }
-        if(pidC!=0){
-            childp[i]=pidC;
-            *count = *count + 1;
-        }
         if (pidC == 0)
         {
             int mypid =getpid();
+            
+            childp[i]=mypid;
+            *count = *count + 1;
+            // fprintf(stderr, "start: %d %s\n", mypid, processes[i].arguments[1]);
             kill(mypid, SIGSTOP);
-            fprintf(stderr, "cont: %d\n", mypid);
+            fprintf(stderr, "SIGCONT: %d\n", mypid);
             execv(processes[i].name, processes[i].arguments);
+            exit(-1);
         }
     }
-    while (*count != numprocesses)
-        ;
-    while (childp[numprocesses-1] == 0)
+    while (*count!=numprocesses)
         ;
     
-    for (int i = 0; i < *count; i++)
-    {
-        fprintf(stderr, "child %d: %d\n", i, childp[i]);
-    }
-    fprintf(stderr, "count: %d\n",*count);
+    // for (int i = 0; i < *count; i++)
+    // {
+    //     fprintf(stderr, "child %d: %d\n", i, childp[i]);
+    // }
+    // fprintf(stderr, "count: %d\n",*count);
     bool flag = false;
     int errnum;
     while (*count)
     {
+        
         for (int i = 0; i < *count; i++)
         {
             int cpid=childp[i];
-            fprintf(stderr, "child %d: %d\n", i, childp[i]);
             kill(childp[i], SIGCONT);
-            ualarm(quantum*1000,quantum*1000);
-            while(!end);
-            fprintf(stderr, "child %d: %d\n", i, childp[i]);
-            if (alarmB)
-            {
-                alarmB=false;
+            // fprintf(stderr, "cont: %d\n", childp[i]);
+            int status = usleep(quantum*1000);
+            // fprintf(stderr, "status: %d\n", status);
+            if(status==0 && !end){
                 kill(childp[i], SIGSTOP);
-                
+                // fprintf(stderr, "stop: %d\n", childp[i]);
             }
-            else
-            {
+            else{
+                // fprintf(stderr, "end: %d\n", childp[i]);
+                i--;
+                end=false;
+            }
+        
 
-                // int cpid=childp[i];
-                // waitpid(cpid,0,0);
-                // int cpid=childp[i];
-                // // if scheduled program completes, remove it from list of children
-                // waitpid(cpid,0,0);
-                // for (int j = i; j < *count - 1; j++)
-                // {
-                //     childp[j] = childp[j + 1]; // assign arr[i+1] to arr[i]
-                // }
-                // *count = *count - 1;
-                
-                // i--;
-            }
-        flag=true;
-        break;
 
         }
-        if(flag){
-            break;
-        }
+
 
     }
-    wait(0); 
+    int status;
+    int wpid;
+    while ((wpid = wait(&status)) > 0);
     munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
     munmap(count, sizeof(int));
 
