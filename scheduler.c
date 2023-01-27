@@ -24,7 +24,7 @@ bool end = false;
 bool alarmB = false;
 pid_t chpid = 0;
 int *logindex;
-
+struct itimerval value, ovalue, pvalue;
 char * logarr[logsize];
 int isNumber(char s[])
 {
@@ -79,237 +79,30 @@ void sigh()
         
         for (int i =0; i<*count;i++){
             if (childp[i] == pid){
-                childp[i]==-1;
+                childp[i]=-1;
             }
         }
-        for (int j = index; j < *count; j++)
-                {
-                    childp[j] = childp[j + 1];
-                }
-                *count = *count - 1;
+        *count=*count-1;
     }
     
 }
 void siga(){
-        struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGALRM: %lu",time_in_micros);
-        *logindex=*logindex+1;
+    fprintf(stderr,"TEST");
+        int which = ITIMER_REAL;
+        value.it_value.tv_sec = 0;
+        value.it_value.tv_usec = 0;
+        value.it_interval.tv_sec = 0;
+        value.it_interval.tv_usec = 0;
+
 }
-void sigu1(){
-        struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGUSR1: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigu2(){
-        struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGUSR2: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sighup(){
-        struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGHUP: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigf(){
-        struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGFPE: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigi(){
-        struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGINT: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigt(){
-        struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGTERM: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigabrt(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGABRT: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigbus(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGBUS: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigill(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGILL: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigprof(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGILL: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigttou(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGTTOU: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigttin(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGTTIN: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigemt(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGEMT: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigpwr(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGPWR: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigio(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGIO: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigiot(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGIOT: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigpipe(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGPIPE: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigpoll(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGPOLL: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigsegv(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGSEGV: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigsys(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGSYS: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigtrap(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGTRAP: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigurg(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGURM: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigvalrm(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGVALRM: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigxcpu(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGXCPU: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigxfsz(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "SIGXFSZ: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
-void sigwinch(){
-    struct timeval tv;
-        gettimeofday(&tv,NULL);
-        unsigned long  time_in_micros = 1000000 * tv.tv_sec + abs(tv.tv_usec);
-        sprintf(logarr[*logindex], "sigwinch: %lu",time_in_micros);
-        *logindex=*logindex+1;
-}
+
 
 int main(int argc, char *argv[])
 {
     // array for keeping track of processes
     signal(SIGCHLD, sigh);
     signal(SIGALRM, siga);
-    signal(SIGUSR1, sigu1);
-    signal(SIGUSR2, sigu2);
-    signal(SIGHUP, sighup);
-    signal(SIGFPE, sigf);
-    signal(SIGINT, sigf);
-    signal(SIGTERM, sigt);
-    signal(SIGABRT, sigabrt);
-    signal(SIGBUS, sigbus);
-    signal(SIGILL, sigill);
-    signal(SIGPROF, sigprof);
-    signal(SIGTTOU, sigttou);
-    signal(SIGTTIN, sigttou);
-    signal(SIGPWR, sigpwr);
-    signal(SIGIO, sigio);
-    signal(SIGIOT, sigiot);
-    signal(SIGPIPE, sigpipe);
-    signal(SIGPOLL, sigpoll);
-    signal(SIGSEGV, sigsegv);
-    signal(SIGSYS, sigsys);
-    signal(SIGTRAP, sigtrap);
-    signal(SIGURG, sigurg);
-    signal(SIGVTALRM, sigvalrm);
-    signal(SIGXCPU, sigxcpu);
-    signal(SIGXFSZ, sigxfsz);
-    signal(SIGWINCH, sigwinch);
+
     childp = mmap(NULL, sizeof(int) * (MAX_PROCESSES + 1), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     count = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     logindex=mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
@@ -448,45 +241,22 @@ int main(int argc, char *argv[])
         {
             int cpid=childp[i];
             kill(childp[i], SIGCONT);
-            struct timeval tv;
-            gettimeofday(&tv,NULL);
-            unsigned long  time_in_micros = 1000000 * tv.tv_sec + tv.tv_usec;
-            sprintf(logarr[*logindex], "cont %d: %lu ", childp[i],time_in_micros);
-            *logindex=*logindex+1;
-            // fprintf(stderr, "cont: %d\n", childp[i]);
-            struct timespec a;
-            a.tv_sec=quantum/1000;
-            a.tv_nsec=(quantum%1000)*1000000;
-            struct timespec b;
-            b.tv_sec=0;
-            b.tv_nsec=0;
-            int status = nanosleep(&a,&b);
+            int which = ITIMER_REAL;
+            getitimer( which, &pvalue );
+            value.it_interval.tv_sec = 0;        /* Zero seconds */
+            value.it_interval.tv_usec = quantum*1000;  /* Two hundred milliseconds */
+            value.it_value.tv_sec = 0;           /* Zero seconds */
+            value.it_value.tv_usec = quantum*1000;     /* Five hundred milliseconds */
+            
+            int result = setitimer( which, &value, &ovalue );
+            sigset_t myset;
+            (void) sigemptyset(&myset);
+            int status = sigsuspend(&myset);
             if(status==-1){
-                errnum = errno;
-                gettimeofday(&tv,NULL);
-                time_in_micros = 1000000 * tv.tv_sec + tv.tv_usec;
-                sprintf(logarr[*logindex], "timer status: %s  %lu %lu %lu", strerror( errnum ), time_in_micros,b.tv_sec,b.tv_nsec);
-            }
-            
-
-
-            
-
-            *logindex=*logindex+1;
-            if(status==0){
                 kill(childp[i], SIGSTOP);
-                gettimeofday(&tv,NULL);
-                time_in_micros = 1000000 * tv.tv_sec + tv.tv_usec;
-                sprintf(logarr[*logindex], "stop %d: %lu\n", childp[i], time_in_micros);
-                *logindex=*logindex+1;
-                
-                // fprintf(stderr, "stop: %d\n", childp[i]);
             }
-            else if (end || status==-1){
-                
-                i--;
-                end=false;
-            }
+
+            
             
         
 
@@ -500,12 +270,6 @@ int main(int argc, char *argv[])
     while ((wpid = wait(&status)) > 0);
     munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
     munmap(count, sizeof(int));
-    fprintf(stderr,"logindex: %d\n",*logindex);
-    for (int i = 0; i < 100; i++)
-    {
-        fprintf(stderr,"%s\n",logarr[i]);
-
-    }
     for (int i = 0; i < numprocesses; i++)
     {
         free(processes[i].name);
