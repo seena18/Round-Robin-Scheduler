@@ -27,7 +27,6 @@ int logindex = 0;
 struct itimerval value, ovalue, pvalue;
 char * logarr[LOGSIZE];
 int notdone;
-int currentPid=0;
 int isNumber(char s[])
 {
     for (int i = 0; s[i] != '\0'; i++)
@@ -63,8 +62,8 @@ void recordlog(char * s, int pid){
     struct timeval tv;
     gettimeofday(&tv,NULL);
     unsigned long time_in_micros = 1000000 * tv.tv_sec + tv.tv_usec;
-    sprintf(logarr[logindex],"%s %d %lu\n",s,pid,time_in_micros/1000);
-    // fprintf(stderr,"%s: %d\n",s , logindex);
+    // sprintf(logarr[logindex],"%s %d %lu",s,pid,time_in_micros);
+    fprintf(stderr,"%s: %d\n",s , logindex);
     logindex = logindex + 1;
 }
 
@@ -101,7 +100,6 @@ void sigh()
 // SIGALRM handler
 void siga(){
     // fprintf(stderr,"TEST");
-    kill(currentPid,SIGSTOP);
     alarmB=true;
     ovalue=value;
     int which = ITIMER_REAL;
@@ -256,26 +254,27 @@ int main(int argc, char *argv[])
         
         for (int i = 0; i < *count; i++)
         {
-            if (childp[i]!=-2){
-                currentPid=childp[i];
-                kill(childp[i], SIGCONT);
-                recordlog("CONT: ", childp[i]);
-                int which = ITIMER_REAL;
-                getitimer( which, &pvalue );
-                value.it_interval.tv_sec = 0;        /* Zero seconds */
-                value.it_interval.tv_usec = 0;  /* Two hundred milliseconds */
-                value.it_value.tv_sec = 0;           /* Zero seconds */
-                value.it_value.tv_usec = quantum*1000;     /* Five hundred milliseconds */
-                if (childp[i]!=-2){
-                    int result = setitimer( which, &value, &ovalue );
-                    recordlog("Timer: ", childp[i] );
-                    sigset_t myset;
-                    sigemptyset(&myset);
-                    sigsuspend(&myset);
-                    recordlog("Stop: ", childp[i] );
-                }
+            int cpid=childp[i];
+            kill(childp[i], SIGCONT);
+            recordlog("CONT: ", childp[i]);
+            int which = ITIMER_REAL;
+            getitimer( which, &pvalue );
+            value.it_interval.tv_sec = 0;        /* Zero seconds */
+            value.it_interval.tv_usec = 0;  /* Two hundred milliseconds */
+            value.it_value.tv_sec = 0;           /* Zero seconds */
+            value.it_value.tv_usec = quantum*1000;     /* Five hundred milliseconds */
+            int result = setitimer( which, &value, &ovalue );
+            // recordlog("Timer: ", childp[i] );
+            sigset_t myset;
+            sigemptyset(&myset);
+            sigsuspend(&myset);
+
+            if(alarmB){
+                alarmB=false;
+                kill(childp[i], SIGSTOP);
+                // recordlog("Stop: ", childp[i] );
+                
             }
-            
 
             
             
@@ -292,11 +291,11 @@ int main(int argc, char *argv[])
     while ((wpid = wait(&status)) > 0);
     munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
     munmap(count, sizeof(int));
-    for (int i = 0; i < 100; i++)
-    {
-        fprintf(stderr,"%s", logarr[i]);
+    // for (int i = 0; i < logindex; i++)
+    // {
+    //     fprintf(stderr,"%s", logarr[i]);
 
-    }
+    // }
     for (int i = 0; i < numprocesses; i++)
     {
         free(processes[i].name);
