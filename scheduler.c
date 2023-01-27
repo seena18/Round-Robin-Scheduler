@@ -101,7 +101,7 @@ void sigh()
 // SIGALRM handler
 void siga(){
     // fprintf(stderr,"TEST");
-    kill(currentPid,SIGSTOP);
+    
     alarmB=true;
     ovalue=value;
     int which = ITIMER_REAL;
@@ -266,27 +266,21 @@ int main(int argc, char *argv[])
                 value.it_interval.tv_usec = 0;  /* Two hundred milliseconds */
                 value.it_value.tv_sec = 0;           /* Zero seconds */
                 value.it_value.tv_usec = quantum*1000;     /* Five hundred milliseconds */
-                if (childp[i]!=-2){
-                    int result = setitimer( which, &value, &ovalue );
-                    recordlog("Timer: ", childp[i] );
-                    sigset_t myset;
-                    sigemptyset(&myset);
-                    sigsuspend(&myset);
-                    recordlog("Stop: ", childp[i] );
+
+                int result = setitimer( which, &value, &ovalue );
+                recordlog("Timer: ", childp[i] );
+                sigset_t myset;
+                sigemptyset(&myset);
+                sigsuspend(&myset);
+                struct itimerval remaining;
+                getitimer(which,&remaining);
+                if(remaining.it_value.tv_usec==0){
+                     recordlog("Stop: ", childp[i]);
+                    kill(currentPid,SIGSTOP);
+                }
                 }
             }
-            
-
-            
-            
-        
-
-
         }
-
-
-    }
-     
     int status;
     int wpid;
     while ((wpid = wait(&status)) > 0);
