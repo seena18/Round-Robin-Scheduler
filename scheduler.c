@@ -15,16 +15,12 @@
 #include <errno.h>
 
 #define MAX_ARGUMENTS 10
-#define MAX_PROCESSES 5
+#define MAX_PROCESSES 124
 #define LOGSIZE 500000
 extern int errno ;
 int *childp;
 int *count;
-bool end = false;
-bool alarmB = false;
-pid_t chpid = 0;
 int logindex = 0;
-struct itimerval value, ovalue, pvalue;
 char * logarr[LOGSIZE];
 int notdone;
 int currentPid=0;
@@ -67,74 +63,24 @@ void recordlog(char * s, int pid){
     logindex = logindex + 1;
 }
 
-// SIGCHILD handler
-void sigh()
-{
-    pid_t pid;
-    int status;
-    int index;
-    // ovalue=value;
-    // int which = ITIMER_REAL;
-    // value.it_interval.tv_sec = 0;      
-    // value.it_interval.tv_usec = 0;  
-    // value.it_value.tv_sec = 0;        
-    // value.it_value.tv_usec = 0;     
-    // setitimer( which, &value, &ovalue );
-    
-    while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
-    {   
-        notdone=notdone-1;
-        
-        recordlog("Terminate: ", pid );
-        for (int i =0; i<*count;i++){
-            if (childp[i] == pid){
-                childp[i]=-2;
-            }
-        }
-        
-        
-    }
-    
-}
-
 // SIGALRM handler
 void siga(){
     recordlog("Stop: ", currentPid);
     kill(currentPid,SIGSTOP);
-    // ovalue=value;
-    // int which = ITIMER_REAL;
-    // value.it_interval.tv_sec = 0;   
-    // value.it_interval.tv_usec = 0;  
-    // value.it_value.tv_sec = 0;           
-    // value.it_value.tv_usec = 0;     
-    // setitimer( which, &value, &ovalue );
-
 }
 
 
 int main(int argc, char *argv[])
 {
-    struct sigaction act;
-    sigset_t set;
-
-    memset(&act,0,sizeof act);
-    sigemptyset(&set);
-    sigaddset(&set, SIGALRM);
-
-
-    act.sa_mask = set;
-    act.sa_handler = sigh;
-    act.sa_flags = SA_RESTART;
-
-    sigaction(SIGCHLD, &act, NULL);
+    
     signal(SIGALRM, siga);
-
     childp = mmap(NULL, sizeof(int) * (MAX_PROCESSES + 1), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     count = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     for (int i = 0; i<LOGSIZE;i++){
         logarr[i]=(char *)malloc(sizeof(char)*100);
     }
     process *processes = (process *)malloc(sizeof(process));
+    struct itimerval value, ovalue, pvalue;
 
     // usage error checking
     if (argc < 3)
@@ -160,6 +106,7 @@ int main(int argc, char *argv[])
     // parse and add all command line arguments to theprocess array
     while (index < argc)
     {
+        numprocesses++;
         if(numprocesses>MAX_PROCESSES){
             fprintf(stderr, "ERROR: number of processes given exceeds max process size of %d",MAX_PROCESSES);
             munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
@@ -180,7 +127,7 @@ int main(int argc, char *argv[])
         int size = 0;
         p.name = (char *)malloc(sizeof(char) * (strlen(argv[index]) + 1));
         strcpy(p.name, argv[index]);
-        numprocesses++;
+        
         
         index++;
         // delimiter for separating each process and their arguments
@@ -234,7 +181,7 @@ int main(int argc, char *argv[])
         int pidC = fork();
         if (pidC == -1)
         {
-            fprintf(stderr, "ERROR: failed to schedule processes");
+            fprintf(stderr, "ERROR: failed to schedule processes\n");
             munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
             munmap(count, sizeof(int));
             for (int i = 0; i < numprocesses; i++)
@@ -268,14 +215,9 @@ int main(int argc, char *argv[])
     while (*count!=numprocesses)
         ;
     
-    for (int i = 0; i < *count; i++)
-    {
-        fprintf(stderr, "child %d: %d\n", i, childp[i]);
-    }
-    bool flag = false;
     int errnum;
     notdone = *count;
-
+    int waitValue,stat;
     while (notdone)
     {
         
@@ -289,16 +231,22 @@ int main(int argc, char *argv[])
                 getitimer( which, &pvalue );
                 value.it_interval.tv_sec = 0;
                 value.it_interval.tv_usec = 0;
-                value.it_value.tv_sec = 0; 
-                value.it_value.tv_usec = quantum*1000;  
+                value.it_value.tv_sec = quantum / 1000; 
+                value.it_value.tv_usec = (quantum % 1000)*1000;
 
-                int result = setitimer( which, &value, &ovalue );
-                // recordlog("Timer: ", childp[i] );
-                // recordlog("Timer Result: ", result );
-                sigset_t myset;
-                sigemptyset(&myset);
-                sigsuspend(&myset);
-
+                if (setitimer(ITIMER_REAL, &value, NULL) == -1) {
+                    perror("Error setting timer");
+                }
+                recordlog("Timer: ", childp[i] );
+                do
+                {
+                    waitValue = waitpid(currentPid, &stat, WUNTRACED);
+                } while (waitValue == -1 && errno == EINTR);
+                if (WIFEXITED(stat))
+                {
+                    childp[i]=-2;
+                    notdone=notdone-1;
+                }
                 struct itimerval remaining;
                 getitimer(which,&remaining);
                 recordlog("Timer Remaining: ", 1000000 * remaining.it_value.tv_sec + remaining.it_value.tv_usec );
@@ -306,9 +254,7 @@ int main(int argc, char *argv[])
                 }
             }
         }
-    int status;
-    int wpid;
-    while ((wpid = wait(&status)) > 0);
+    
     munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
     munmap(count, sizeof(int));
     FILE *fp;
