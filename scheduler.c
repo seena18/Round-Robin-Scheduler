@@ -15,7 +15,7 @@
 #include <errno.h>
 
 #define MAX_ARGUMENTS 10
-#define MAX_PROCESSES 101
+#define MAX_PROCESSES 5
 #define LOGSIZE 500000
 extern int errno ;
 int *childp;
@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
     childp = mmap(NULL, sizeof(int) * (MAX_PROCESSES + 1), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     count = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     for (int i = 0; i<LOGSIZE;i++){
-        logarr[i]=(char *)malloc(sizeof(char)*10000);
+        logarr[i]=(char *)malloc(sizeof(char)*100);
     }
     process *processes = (process *)malloc(sizeof(process));
 
@@ -160,13 +160,28 @@ int main(int argc, char *argv[])
     // parse and add all command line arguments to theprocess array
     while (index < argc)
     {
-
+        if(numprocesses>MAX_PROCESSES){
+            fprintf(stderr, "ERROR: number of processes given exceeds max process size of %d",MAX_PROCESSES);
+            munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
+            munmap(count, sizeof(int));
+            for (int i = 0; i < numprocesses; i++)
+            {
+                free(processes[i].name);
+                for (int j = 0; j < processes[i].size; j++)
+                {
+                    free(processes[i].arguments[j]);
+                }
+            }
+            free(processes);
+            return 0;
+        }
         process p;
 
         int size = 0;
         p.name = (char *)malloc(sizeof(char) * (strlen(argv[index]) + 1));
         strcpy(p.name, argv[index]);
         numprocesses++;
+        
         index++;
         // delimiter for separating each process and their arguments
         p.arguments[size] = (char *)malloc(sizeof(char) * (strlen(p.name) + 1));
@@ -280,7 +295,10 @@ int main(int argc, char *argv[])
                 int result = setitimer( which, &value, &ovalue );
                 // recordlog("Timer: ", childp[i] );
                 // recordlog("Timer Result: ", result );
-                pause();
+                sigset_t myset;
+                sigemptyset(&myset);
+                sigsuspend(&myset);
+
                 struct itimerval remaining;
                 getitimer(which,&remaining);
                 recordlog("Timer Remaining: ", 1000000 * remaining.it_value.tv_sec + remaining.it_value.tv_usec );
