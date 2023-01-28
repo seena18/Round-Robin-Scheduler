@@ -63,8 +63,7 @@ void recordlog(char * s, int pid){
     struct timeval tv;
     gettimeofday(&tv,NULL);
     unsigned long time_in_micros = 1000000 * tv.tv_sec + tv.tv_usec;
-    sprintf(logarr[logindex],"%s %d %lu\n",s,pid,time_in_micros/1000);
-    // fprintf(stderr,"%s: %d\n",s , logindex);
+    sprintf(logarr[logindex],"%s %d %lu\n",s,pid,time_in_micros);
     logindex = logindex + 1;
 }
 
@@ -74,13 +73,13 @@ void sigh()
     pid_t pid;
     int status;
     int index;
-    ovalue=value;
-    int which = ITIMER_REAL;
-    value.it_interval.tv_sec = 0;        /* Zero seconds */
-    value.it_interval.tv_usec = 0;  /* Two hundred milliseconds */
-    value.it_value.tv_sec = 0;           /* Zero seconds */
-    value.it_value.tv_usec = 0;     /* Five hundred milliseconds */
-    setitimer( which, &value, &ovalue );
+    // ovalue=value;
+    // int which = ITIMER_REAL;
+    // value.it_interval.tv_sec = 0;      
+    // value.it_interval.tv_usec = 0;  
+    // value.it_value.tv_sec = 0;        
+    // value.it_value.tv_usec = 0;     
+    // setitimer( which, &value, &ovalue );
     
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
     {   
@@ -100,23 +99,34 @@ void sigh()
 
 // SIGALRM handler
 void siga(){
-    // fprintf(stderr,"TEST");
-    
-    alarmB=true;
-    ovalue=value;
-    int which = ITIMER_REAL;
-    value.it_interval.tv_sec = 0;        /* Zero seconds */
-    value.it_interval.tv_usec = 0;  /* Two hundred milliseconds */
-    value.it_value.tv_sec = 0;           /* Zero seconds */
-    value.it_value.tv_usec = 0;     /* Five hundred milliseconds */
-    setitimer( which, &value, &ovalue );
+    recordlog("Stop: ", currentPid);
+    kill(currentPid,SIGSTOP);
+    // ovalue=value;
+    // int which = ITIMER_REAL;
+    // value.it_interval.tv_sec = 0;   
+    // value.it_interval.tv_usec = 0;  
+    // value.it_value.tv_sec = 0;           
+    // value.it_value.tv_usec = 0;     
+    // setitimer( which, &value, &ovalue );
 
 }
 
 
 int main(int argc, char *argv[])
 {
-    signal(SIGCHLD, sigh);
+    struct sigaction act;
+    sigset_t set;
+
+    memset(&act,0,sizeof act);
+    sigemptyset(&set);
+    sigaddset(&set, SIGALRM);
+
+
+    act.sa_mask = set;
+    act.sa_handler = sigh;
+    act.sa_flags = SA_RESTART;
+
+    sigaction(SIGCHLD, &act, NULL);
     signal(SIGALRM, siga);
 
     childp = mmap(NULL, sizeof(int) * (MAX_PROCESSES + 1), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
@@ -262,22 +272,19 @@ int main(int argc, char *argv[])
                 recordlog("CONT: ", childp[i]);
                 int which = ITIMER_REAL;
                 getitimer( which, &pvalue );
-                value.it_interval.tv_sec = 0;        /* Zero seconds */
-                value.it_interval.tv_usec = 0;  /* Two hundred milliseconds */
-                value.it_value.tv_sec = 0;           /* Zero seconds */
-                value.it_value.tv_usec = quantum*1000;     /* Five hundred milliseconds */
+                value.it_interval.tv_sec = 0;
+                value.it_interval.tv_usec = 0;
+                value.it_value.tv_sec = 0; 
+                value.it_value.tv_usec = quantum*1000;  
 
                 int result = setitimer( which, &value, &ovalue );
-                recordlog("Timer: ", childp[i] );
-                sigset_t myset;
-                sigemptyset(&myset);
-                sigsuspend(&myset);
+                // recordlog("Timer: ", childp[i] );
+                // recordlog("Timer Result: ", result );
+                pause();
                 struct itimerval remaining;
                 getitimer(which,&remaining);
-                if(remaining.it_value.tv_usec==0){
-                     recordlog("Stop: ", childp[i]);
-                    kill(currentPid,SIGSTOP);
-                }
+                recordlog("Timer Remaining: ", 1000000 * remaining.it_value.tv_sec + remaining.it_value.tv_usec );
+                
                 }
             }
         }
@@ -286,11 +293,15 @@ int main(int argc, char *argv[])
     while ((wpid = wait(&status)) > 0);
     munmap(childp, sizeof(int) * (MAX_PROCESSES + 1));
     munmap(count, sizeof(int));
-    for (int i = 0; i < 100; i++)
+    FILE *fp;
+    fp = fopen("log.txt", "w");
+    for (int i = 0; i < logindex; i++)
     {
-        fprintf(stderr,"%s", logarr[i]);
+        
+        fprintf(fp, "%s", logarr[i]);
 
     }
+     fclose(fp);
     for (int i = 0; i < numprocesses; i++)
     {
         free(processes[i].name);
